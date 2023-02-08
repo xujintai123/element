@@ -6,6 +6,22 @@ export default class TreeStore {
     this.currentNode = null;
     this.currentNodeKey = null;
 
+    /* 将用户传入的一些静态属性 打入TreeStore实例 */
+    /*  {
+       key: this.nodeKey, // 每个树节点用来作为唯一标识的属性，整棵树应该是唯一的（String）
+       data: this.data, // 展示数据 （array）
+       lazy: this.lazy, // 是否懒加载子节点，需与 load 方法结合使用（boolean）
+       props: this.props, // https://element.eleme.io/#/zh-CN/component/tree
+       load: this.load, // 加载子树数据的方法，仅当 lazy 属性为true 时生效 （function(node, resolve)）
+       currentNodeKey: this.currentNodeKey, // 当前选中的节点 string, number
+       checkStrictly: this.checkStrictly, // 在显示复选框的情况下，是否严格的遵循父子不互相关联的做法，默认为 false
+       checkDescendants: this.checkDescendants,
+       defaultCheckedKeys: this.defaultCheckedKeys,
+       defaultExpandedKeys: this.defaultExpandedKeys,
+       autoExpandParent: this.autoExpandParent,
+       defaultExpandAll: this.defaultExpandAll,
+       filterNodeMethod: this.filterNodeMethod // 对树节点进行筛选时执行的方法，返回 true 表示这个节点可以显示，返回 false 则表示这个节点会被隐藏 Function(value, data, node)
+     } */
     for (let option in options) {
       if (options.hasOwnProperty(option)) {
         this[option] = options[option];
@@ -14,18 +30,24 @@ export default class TreeStore {
 
     this.nodesMap = {};
 
+    /* 根节点也是节点，只不过它是根节点 */
     this.root = new Node({
       data: this.data,
       store: this
     });
 
+    /* 懒加载 */
     if (this.lazy && this.load) {
+      /* 获取 load 方法 */
       const loadFn = this.load;
+      /* 传参：根节点，创建子节点的方法（data为数组） */
+      /* doCreateChildren 遍历data，创建子节点，添加到当前节点（this.root）的childNodes的指定位置（默认位置为尾部） */
       loadFn(this.root, (data) => {
         this.root.doCreateChildren(data);
         this._initDefaultCheckedNodes();
       });
     } else {
+      /* 非懒加载则初始化选中的节点 */
       this._initDefaultCheckedNodes();
     }
   }
@@ -108,6 +130,7 @@ export default class TreeStore {
   _initDefaultCheckedNodes() {
     const defaultCheckedKeys = this.defaultCheckedKeys || [];
     const nodesMap = this.nodesMap;
+    console.log('this.nodesMap', this.nodesMap);
 
     defaultCheckedKeys.forEach((checkedKey) => {
       const node = nodesMap[checkedKey];
@@ -137,6 +160,7 @@ export default class TreeStore {
     const key = this.key;
     if (!key || !node || !node.data) return;
 
+    /* 新生成Node时，注册进nodesMap */
     const nodeKey = node.key;
     if (nodeKey !== undefined) this.nodesMap[node.key] = node;
   }

@@ -18,7 +18,7 @@ export const getChildState = node => {
       none = false;
     }
   }
-
+  // 全部checked， 没有一个checked，全部disabled， 部分checked
   return { all, none, allWithoutDisable, half: !all && !none };
 };
 
@@ -63,6 +63,10 @@ const getPropertyFromData = function(node, prop) {
 let nodeIdSeed = 0;
 
 export default class Node {
+  /*
+    将当前节点添加进nodeMap
+    若不是懒加载，则将子节点初始化
+   */
   constructor(options) {
     this.id = nodeIdSeed++;
     this.text = null;
@@ -74,6 +78,10 @@ export default class Node {
     this.visible = true;
     this.isCurrent = false;
 
+    /* {
+      data,
+      store
+    } */
     for (let name in options) {
       if (options.hasOwnProperty(name)) {
         this[name] = options[name];
@@ -97,6 +105,7 @@ export default class Node {
     store.registerNode(this);
 
     const props = store.props;
+    /* 初始化节点的isLeafByUser */
     if (props && typeof props.isLeaf !== 'undefined') {
       const isLeaf = getPropertyFromData(this, 'isLeaf');
       if (typeof isLeaf === 'boolean') {
@@ -104,7 +113,9 @@ export default class Node {
       }
     }
 
+    /* 非懒加载时，初始化子节点；通过传入的data转化为当前节点的子节点 */
     if (store.lazy !== true && this.data) {
+      /* setData方法只有根节点传入data才会有效，非根节点会从当前节点的children中取值，即使传了data也会被忽略 */
       this.setData(this.data);
 
       if (store.defaultExpandAll) {
@@ -128,6 +139,7 @@ export default class Node {
       store.currentNode.isCurrent = true;
     }
 
+    /* 处理当前节点的选中逻辑（若当前节点在defaultCheckedKeys范围内，则选中） */
     if (store.lazy) {
       store._initDefaultCheckedNode(this);
     }
@@ -136,6 +148,7 @@ export default class Node {
   }
 
   setData(data) {
+    /* 添加'$treeNodeId'标记 */
     if (!Array.isArray(data)) {
       markNodeData(this, data);
     }
@@ -144,6 +157,7 @@ export default class Node {
     this.childNodes = [];
 
     let children;
+    /* 当前节点为根节点，从data取值来转换为子节点；否则从当前节点的 children 属性取值*/
     if (this.level === 0 && this.data instanceof Array) {
       children = this.data;
     } else {
@@ -151,6 +165,7 @@ export default class Node {
     }
 
     for (let i = 0, j = children.length; i < j; i++) {
+      /* 不传入位置的话，将data添加到当前节点的childNodes尾部 */
       this.insertChild({ data: children[i] });
     }
   }
@@ -215,9 +230,11 @@ export default class Node {
     }
   }
 
+  /* child类型为对象； 将child添加到当前节点的childNodes */
   insertChild(child, index, batch) {
     if (!child) throw new Error('insertChild error: child is required.');
 
+    /* child是普通数据，并不是Node实例 */
     if (!(child instanceof Node)) {
       if (!batch) {
         const children = this.getChildren(true) || [];
@@ -229,6 +246,7 @@ export default class Node {
           }
         }
       }
+      /* 添加父节点，store，将普通对象转换为Node实例 */
       objectAssign(child, {
         parent: this,
         store: this.store
@@ -238,6 +256,7 @@ export default class Node {
 
     child.level = this.level + 1;
 
+    /* 未传入位置就将节点添加到当前节点的childNodes的尾部 */
     if (typeof index === 'undefined' || index < 0) {
       this.childNodes.push(child);
     } else {
@@ -298,6 +317,7 @@ export default class Node {
   }
 
   expand(callback, expandParent) {
+    /* 如果expandParent，则节点自底向上进行展开 */
     const done = () => {
       if (expandParent) {
         let parent = this.parent;
@@ -326,6 +346,7 @@ export default class Node {
     }
   }
 
+  /* 遍历array，创建子节点，添加到当前节点的childNodes的指定位置（默认位置为尾部） */
   doCreateChildren(array, defaultProps = {}) {
     array.forEach((item) => {
       this.insertChild(objectAssign({ data: item }, defaultProps), undefined, true);
@@ -341,11 +362,15 @@ export default class Node {
   }
 
   updateLeafState() {
+    /* 文档介绍：指定节点是否为叶子节点，仅在指定了 lazy 属性的情况下生效 https://element.eleme.io/#/zh-CN/component/tree；
+    那么是不是可以直接 if (!this.store.lazy) return; */
+    /* 懒加载并且未展开的节点，通过isLeafByUser来初始化当前是否是叶子节点 */
     if (this.store.lazy === true && this.loaded !== true && typeof this.isLeafByUser !== 'undefined') {
       this.isLeaf = this.isLeafByUser;
       return;
     }
     const childNodes = this.childNodes;
+    /* 非懒加载或者已经展开的节点，通过childNodes长度来判断当前是否是叶子节点 */
     if (!this.store.lazy || (this.store.lazy === true && this.loaded === true)) {
       this.isLeaf = !childNodes || childNodes.length === 0;
       return;
@@ -357,8 +382,11 @@ export default class Node {
     this.indeterminate = value === 'half';
     this.checked = value === true;
 
+    /* checkStrictly 在显示复选框的情况下，是否严格的遵循父子不互相关联的做法，默认为 false */
+    /* 父子不互相关联则直接退出 */
     if (this.store.checkStrictly) return;
 
+    /* 父子关联则需要向下递归将存在关系的父子节点全部选中 */
     if (!(this.shouldLoadData() && !this.store.checkDescendants)) {
       let { all, allWithoutDisable } = getChildState(this.childNodes);
 
@@ -459,9 +487,11 @@ export default class Node {
   }
 
   loadData(callback, defaultProps = {}) {
+    // 开启懒加载并且未加载并且当前不在加载中
     if (this.store.lazy === true && this.store.load && !this.loaded && (!this.loading || Object.keys(defaultProps).length)) {
       this.loading = true;
 
+      // 给当前节点添加子节点
       const resolve = (children) => {
         this.childNodes = [];
 
@@ -474,6 +504,7 @@ export default class Node {
         }
       };
 
+      // this.store.load就是用户传入的load方法
       this.store.load(this, resolve);
     } else {
       if (callback) {

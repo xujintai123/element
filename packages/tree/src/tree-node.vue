@@ -23,8 +23,11 @@
     @drop.stop="handleDrop"
     ref="node"
   >
+  <!-- padding-left：节点偏移量 -->
     <div class="el-tree-node__content"
       :style="{ 'padding-left': (node.level - 1) * tree.indent + 'px' }">
+      <!-- 展开图标点击事件 -->
+      <!-- 展开图标：点击后切换节点的点击状态 -->
       <span
         @click.stop="handleExpandIconClick"
         :class="[
@@ -34,6 +37,7 @@
         ]"
       >
       </span>
+      <!-- 复选框：点击后切换节点的选择状态 -->
       <el-checkbox
         v-if="showCheckbox"
         v-model="node.checked"
@@ -43,13 +47,16 @@
         @change="handleCheckChange"
       >
       </el-checkbox>
+      <!-- loading 这里直接使用了loading图标 -->
       <span
         v-if="node.loading"
         class="el-tree-node__loading-icon el-icon-loading">
       </span>
       <node-content :node="node"></node-content>
     </div>
+    <!-- 折叠器 https://element.eleme.io/#/zh-CN/component/transition -->
     <el-collapse-transition>
+      <!-- 节点的点击状态为expanded时展示子节点 -->
       <div
         class="el-tree-node__children"
         v-if="!renderAfterExpand || childNodeRendered"
@@ -105,6 +112,7 @@
     components: {
       ElCollapseTransition,
       ElCheckbox,
+      // 处理插槽逻辑
       NodeContent: {
         props: {
           node: {
@@ -145,7 +153,7 @@
       'node.checked'(val) {
         this.handleSelectChange(val, this.node.indeterminate);
       },
-
+      /* 点击后expanded为true */
       'node.expanded'(val) {
         this.$nextTick(() => this.expanded = val);
         if (val) {
@@ -167,6 +175,7 @@
         this.indeterminate = indeterminate;
       },
 
+      // 开启expandOnClickNode 则：是否在点击节点的时候展开或者收缩节点， 默认值为 true，如果为 false，则只有点箭头图标的时候才会展开或者收缩节点。
       handleClick() {
         const store = this.tree.store;
         store.setCurrentNode(this.node);
@@ -192,12 +201,17 @@
       },
 
       handleExpandIconClick() {
+        /* 叶子节点直接退出 */
         if (this.node.isLeaf) return;
+        /* 已经展开则关闭 */
         if (this.expanded) {
+          // 抛出节点关闭事件
           this.tree.$emit('node-collapse', this.node.data, this.node, this);
           this.node.collapse();
         } else {
-          this.node.expand();
+          /* 展开 */
+          this.node.expand(); // node.expand
+          // 抛出节点展开事件
           this.$emit('node-expand', this.node.data, this.node, this);
         }
       },
@@ -244,6 +258,7 @@
     created() {
       const parent = this.$parent;
 
+      /* 初始化tree保存根节点数据 */
       if (parent.isTree) {
         this.tree = parent;
       } else {

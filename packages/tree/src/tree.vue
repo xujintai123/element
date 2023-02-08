@@ -9,6 +9,9 @@
     }"
     role="tree"
   >
+    <!-- v-for root.childNodes 可以看出，将root.childNodes作为根节点（让root.childNodes长度为1），可以形成单个树结构；
+      如果 root.childNodes 长度大于1，则会生成多个树结构（并行关系）；
+     -->
     <el-tree-node
       v-for="child in root.childNodes"
       :node="child"
@@ -320,8 +323,11 @@
     },
 
     created() {
+      /* 标记此实例为根节点 */
       this.isTree = true;
 
+      /* 初始化store */
+      /* 懒加载时，根节点调用load传入根节点；其余节点调用load传入自己 */
       this.store = new TreeStore({
         key: this.nodeKey,
         data: this.data,
@@ -340,6 +346,7 @@
 
       this.root = this.store.root;
 
+      /* 初始化拖拽相关的逻辑 */
       let dragState = this.dragState;
       this.$on('tree-node-drag-start', (event, treeNode) => {
         if (typeof this.allowDrag === 'function' && !this.allowDrag(treeNode.node)) {
