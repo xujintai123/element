@@ -75,7 +75,7 @@ export default class Node {
     this.data = null;
     this.expanded = false;
     this.parent = null;
-    this.visible = true;
+    this.visible = true; // 用于实现过滤功能，触发过滤时，如果不满足筛选条件，则置为false
     this.isCurrent = false;
 
     /* {
@@ -316,8 +316,11 @@ export default class Node {
     }
   }
 
+  // 调用loadData方法 将节点的expanded置为true；显示子节点
   expand(callback, expandParent) {
     /* 如果expandParent，则节点自底向上进行展开 */
+    /* 如果expandParent，则节点自底向上进行展开； 否则只修改当前节点的展开状态 */
+    // done方法 改变当前节点的展开状态
     const done = () => {
       if (expandParent) {
         let parent = this.parent;
@@ -330,6 +333,7 @@ export default class Node {
       if (callback) callback();
     };
 
+    // 开启懒加载 && 传递方法 && 未加载
     if (this.shouldLoadData()) {
       this.loadData((data) => {
         if (data instanceof Array) {
@@ -357,6 +361,7 @@ export default class Node {
     this.expanded = false;
   }
 
+  // 开启懒加载 && 传递方法 && 未加载
   shouldLoadData() {
     return this.store.lazy === true && this.store.load && !this.loaded;
   }
@@ -505,6 +510,7 @@ export default class Node {
       };
 
       // this.store.load就是用户传入的load方法
+      // 也就是首次触发展开节点后 会调用用户传入的load方法，传入resolve，用户将需要添加的数据传入resolve；构建出子节点
       this.store.load(this, resolve);
     } else {
       if (callback) {
