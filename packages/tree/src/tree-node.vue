@@ -119,6 +119,13 @@
             required: true
           }
         },
+        /* 渲染函数只需要返回可以生成vnode的结果 */
+        /* 之所以下面可以返回<span class="el-tree-node__label">{ node.label }</span>，而不用h函数处理的原因 是因为vue 内部最后会调用 createElement编译成 VNode。*/
+        /* 将 h 作为 createElement 的别名是 Vue 生态系统中的一个通用惯例，实际上也是 JSX 所要求的。
+        从 Vue 的 Babel 插件的 3.4.0 版本开始，我们会在以 ES2015 语法声明的含有 JSX 的任何方法和 getter 中 (不是函数或箭头函数中) 自动注入 const h = this.$createElement，这样你就可以去掉 (h) 参数了。
+        / 对于更早版本的插件，如果 h 在当前作用域中不可用，应用会抛错。 */
+        /* tree组件并没有提供插槽占位符，但可以生效的原因是。由于用户使用了插槽，就可以在tree组件的$scopedSlots对象中拿到插槽编译生成的渲染方法，tree-node组件中使用的node-content组件的 render方法返回作用域插槽的渲染方法调用；
+        这样更加灵活，用户想要在tree-node中插入自定义的内容，只需要在使用tree组件传入renderContent 或者 直接使用默认插槽就行  */
         render(h) {
           const parent = this.$parent;
           const tree = parent.tree;
@@ -128,6 +135,8 @@
             parent.renderContent
               ? parent.renderContent.call(parent._renderProxy, h, { _self: tree.$vnode.context, node, data, store })
               : tree.$scopedSlots.default
+                // tree组件支持作用域插槽，因为使用作用域插槽的话，这里方便向外部传值（{ node, data }）
+                // $scopedSlots能访问到组件实例的所有作用域插槽，而$slots只能访问所有的非作用域插槽；两者之间较大的差别就是 插槽是否可以获取到参数
                 ? tree.$scopedSlots.default({ node, data })
                 : <span class="el-tree-node__label">{ node.label }</span>
           );
